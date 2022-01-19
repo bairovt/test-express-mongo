@@ -1,26 +1,27 @@
 const express = require('express')
-const mongoose = require('mongoose');
 const http = require('http')
-const {User, Photo, Album} = require('./models.js')
-
+const crypto = require('crypto')
+const {User, Photo, Album} = require('models.js')
 
 const app = express();
 
 app.use(express.json());
-
-mongoose.connect('mongodb://localhost:27017/test1');
 
 app.post('/register', async (req, res, next) => {
   try {
     let user = new User({
       login: req.body.login,
       email: req.body.email,
-      password: req.body.password      
+      password: crypto.createHash('md5').update(req.body.password).digest('hex')
     });
     await User.validate(user)
-    // let existing = await User.findOne()
+    const existing = await User.findOne({$or: [{login: user.login}, {email: user.email}]}).exec()
+    if (existing) {
+      res.status(409).json({ error: { message: 'The same login or email already registered' } });
+      return next();
+    }
     user = await user.save();
-    res.json(user)
+    res.json({_id: user._id})
   } catch (err) {    
     next(err)
   }
@@ -35,15 +36,4 @@ app.use((err, req, res, next) => {
   res.status(500).json({error: 'server error'});
 });
 
-const PORT = process.env.PORT || 3000;
-
-const server = http.createServer(app)
-
-server.listen(PORT)
-server.on('error', error => {
-  throw error;
-})
-server.on('listening', () => {
-  const addr = server.address();
-  console.log(`Listening on http://localhost:${addr.port}`);
-})
+module.exports = app

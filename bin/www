@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+
+var app = require('../app');
+var http = require('http');
+const mongoose = require('mongoose');
+
+const PORT = process.env.PORT || 3000;
+
+const server = http.createServer(app);
+server.on('error', (error) => {
+  throw error;
+});
+server.on('listening', () => {
+  const addr = server.address();
+  console.log(`Listening on http://localhost:${addr.port}`);
+});
+
+mongoose.connect('mongodb://localhost:27017/test1').then(() => {
+  server.listen(PORT);
+});
+
