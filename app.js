@@ -1,7 +1,10 @@
 const express = require('express')
-const http = require('http')
+const mongoose = require('mongoose');
 const crypto = require('crypto')
 const {User, Photo, Album} = require('models.js')
+const validator = require('validator');
+const jwt = require('jsonwebtoken');
+const config = require('config.js')
 
 const app = express();
 
@@ -23,6 +26,33 @@ app.post('/register', async (req, res, next) => {
     user = await user.save();
     res.json({_id: user._id})
   } catch (err) {    
+    next(err)
+  }
+})
+
+app.post('/login', async (req, res, next) => {
+  try {
+    // todo validate dto
+    const login = req.body.login;    
+    const password = req.body.password;
+    let user; // todo addtype
+    const md5pass = crypto.createHash('md5').update(password).digest('hex');
+    if (validator.isEmail(login)) {
+      user = await User.findOne({ email: login, password: md5pass }).exec();
+    } else {
+      user = await User.findOne({ login: login, password: md5pass }).exec();
+    }
+    if (!user) {
+      res.status(401).end();
+    }
+    const jwtPayload = {      
+      user_id: user._id,
+      login: user.lonig,
+      email: user.email,
+    };
+    const authToken = jwt.sign(jwtPayload, config.SECRET_KEY);    
+    res.json({ login: user.login, authToken });
+  } catch (err) {
     next(err)
   }
 })

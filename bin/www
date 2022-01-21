@@ -3,9 +3,7 @@
 var app = require('../app');
 var http = require('http');
 const mongoose = require('mongoose');
-
-const PORT = process.env.PORT || 3000;
-
+const config =  require('config.js')
 const server = http.createServer(app);
 server.on('error', (error) => {
   throw error;
@@ -16,6 +14,6 @@ server.on('listening', () => {
 });
 
 mongoose.connect('mongodb://localhost:27017/test1').then(() => {
-  server.listen(PORT);
+  server.listen(config.PORT);
 });
 

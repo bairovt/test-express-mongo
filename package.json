@@ -5,12 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "export NODE_PATH=./ && NODE_ENV=development nodemon ./bin/www"
+    "dev": "export NODE_PATH=./ && NODE_ENV=development && PORT=3000 nodemon ./bin/www",
+    "start": "export NODE_PATH=./ && NODE_ENV=production node ./bin/www"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.2",
+    "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.1.7",
     "validator": "^13.7.0"
   }

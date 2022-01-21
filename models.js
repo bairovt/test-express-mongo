@@ -39,10 +39,12 @@ const PhotoSchema = new Schema({
   url: {
     type: String,
     required: true,
+    validate: [validator.isURL, 'invalid url'],
   },
   thumbnailUrl: {
     type: String,
     required: true,
+    validate: [validator.isURL, 'invalid url'],
   },
   owner: { type: ObjectId, required: true },
 });
