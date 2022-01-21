@@ -5,6 +5,7 @@ const {User, Photo, Album} = require('models.js')
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const config = require('config.js')
+const authenticate = require('./middleware/auth');
 
 const app = express();
 
@@ -43,7 +44,7 @@ app.post('/login', async (req, res, next) => {
       user = await User.findOne({ login: login, password: md5pass }).exec();
     }
     if (!user) {
-      res.status(401).end();
+      res.status(401).end('User unauthorized');
     }
     const jwtPayload = {      
       user_id: user._id,
@@ -57,12 +58,21 @@ app.post('/login', async (req, res, next) => {
   }
 })
 
+app.post('/load-photos', authenticate, async (req, res, next) => {
+  try {
+    // console.log(JSON.stringify(res.locals, null, 2));
+    res.json({ login: res.locals.user.login });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // error handler
 app.use((err, req, res, next) => {
   if (err instanceof mongoose.Error.ValidationError) {
     res.status(400).json({ error: err });
   }
-  console.error('ERROR!!!', err);
+  console.error('Unhandled ERROR!', err);
   res.status(500).json({error: 'server error'});
 });
 
