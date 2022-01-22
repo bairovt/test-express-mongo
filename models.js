@@ -48,7 +48,15 @@ const PhotoSchema = new Schema({
   },
   owner: { type: ObjectId, required: true },
 });
+PhotoSchema.index({albumId: 1, title: 1}, {unique: true});
 const Photo = mongoose.model('Photo', PhotoSchema);
+Photo.on('index', function (err) {
+  if (err) {
+    console.error('Photo indexing error: %s', err);
+  } else {
+    console.info('Photo indexing complete');
+  }
+});
 
 
 const AlbumSchema = new Schema({
@@ -56,7 +64,10 @@ const AlbumSchema = new Schema({
     type: String,
     required: true,
   },
-  owner: { type: ObjectId, required: true },
+  owner: { 
+    type: ObjectId,
+    required: true
+  },
 });
 const Album = mongoose.model('Album', AlbumSchema);
 

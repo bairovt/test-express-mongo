@@ -13,6 +13,10 @@ server.on('listening', () => {
   console.log(`Listening on http://localhost:${addr.port}`);
 });
 
+if (process.env.NODE_ENV === 'development') {
+  mongoose.set('debug', true);
+}
+
 mongoose.connect('mongodb://localhost:27017/test1').then(() => {
   server.listen(config.PORT);
 });

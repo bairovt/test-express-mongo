@@ -6,6 +6,7 @@ const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const config = require('config.js')
 const authenticate = require('./middleware/auth');
+const axios = require('axios');
 
 const app = express();
 
@@ -58,10 +59,40 @@ app.post('/login', async (req, res, next) => {
   }
 })
 
-app.post('/load-photos', authenticate, async (req, res, next) => {
+app.post('/load-photos', authenticate, async (req, res, next) => {  
   try {
-    // console.log(JSON.stringify(res.locals, null, 2));
-    res.json({ login: res.locals.user.login });
+    const user = res.locals.user;
+    const resp = await axios.get('http://jsonplaceholder.typicode.com/photos');
+    let album;
+    let result = {
+      duplicated: 0,
+      inserted: 0
+    };
+    for (let item of resp.data) {
+      album = await Album.findOne({title: item.albumId, owner: user._id}).exec();
+      if (!album) {
+        album = new Album({ title: item.albumId, owner: user._id });
+        await album.save();
+      }
+      const photo = new Photo({ 
+        albumId: album._id, 
+        title: item.title, 
+        url: item.url, 
+        thumbnailUrl: item.thumbnailUrl, 
+        owner: user._id 
+      });
+      try {
+        await photo.save();
+        result.inserted++;
+      } catch (err) {
+        if (err.code === 11000) {
+          result.duplicated++;
+        } else {
+          throw err;
+        }
+      }
+    }
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -72,7 +103,7 @@ app.use((err, req, res, next) => {
   if (err instanceof mongoose.Error.ValidationError) {
     res.status(400).json({ error: err });
   }
-  console.error('Unhandled ERROR!', err);
+  console.error('Unhandled ERROR!', JSON.stringify(err, null, 2 ));
   res.status(500).json({error: 'server error'});
 });
 
