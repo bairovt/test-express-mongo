@@ -135,6 +135,36 @@ app.get('/get-photos', async (req, res, next) => {
   }
 });
 
+app.delete('/delete-photo', authenticate, async (req, res, next) => {
+  try {
+    const user = res.locals.user;
+    let photoid = req.query.photoid;
+    if (typeof photoid !== 'string') {
+      res.status(400).json({ error: 'photoid must be a string'});
+    }
+    let photoIds = photoid.split(',');
+    let photoObjectIds;
+    try {
+      photoObjectIds = photoIds.map(id => new ObjectId(id));
+    } catch (err) {
+      if (err.name === 'BSONTypeError') {
+        return res.status(400).json({error: "invalid photoid"})
+      } else {
+        throw err
+      };
+    }
+    // check if id list contains photos owned by another user
+    const forbiddenPhoto = await Photo.findOne({ _id: { $in: photoObjectIds }, owner: {$ne: user._id} });
+    if (forbiddenPhoto) {
+      return res.status(403).json({error: "id list contains a non-user photo"})
+    }
+    const result = await Photo.deleteMany({_id: {$in: photoObjectIds}});
+    res.json(result);
+  } catch (err) {
+    next(err)
+  }
+});
+
 // error handler
 app.use((err, req, res, next) => {
   if (err instanceof mongoose.Error.ValidationError) {
