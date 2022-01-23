@@ -1,5 +1,4 @@
 const express = require('express')
-const mongoose = require('mongoose');
 const crypto = require('crypto')
 const {User, Photo, Album} = require('models.js')
 const validator = require('validator');
@@ -7,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const config = require('config.js')
 const authenticate = require('./middleware/auth');
 const axios = require('axios');
+const mongoose = require('mongoose');
+const ObjectId = mongoose.Types.ObjectId;
 
 const app = express();
 
@@ -40,7 +41,7 @@ app.post('/login', async (req, res, next) => {
     let user; // todo addtype
     const md5pass = crypto.createHash('md5').update(password).digest('hex');
     if (validator.isEmail(login)) {
-      user = await User.findOne({ email: login, password: md5pass }).exec();
+      user = await User.findOne({ email: login.toLowerCase(), password: md5pass }).exec();
     } else {
       user = await User.findOne({ login: login, password: md5pass }).exec();
     }
@@ -53,7 +54,7 @@ app.post('/login', async (req, res, next) => {
       email: user.email,
     };
     const authToken = jwt.sign(jwtPayload, config.SECRET_KEY);    
-    res.json({ login: user.login, authToken });
+    res.json({ _id: user._id, login: user.login, authToken });
   } catch (err) {
     next(err)
   }
@@ -98,12 +99,48 @@ app.post('/load-photos', authenticate, async (req, res, next) => {
   }
 });
 
+app.get('/get-photos', async (req, res, next) => {
+  try {
+    // todo types
+    const q = {
+      ownerid: req.query.ownerid,
+      page: parseInt(req.query.page),
+      maxcount: parseInt(req.query.maxcount),
+    };
+    if (typeof q.ownerid !== 'string' || !validator.isMongoId(q.ownerid)) {
+      q.ownerid = null;
+    }
+    if (!q.page || !q.maxcount) {
+      return res.status(400).json({ error: "'page' and 'maxcount' must be present" });
+    }
+    if (typeof q.page !== 'number' || typeof q.maxcount !== 'number') {
+      return res.status(400).json({ error: "'page' and 'maxcount' should be a number" });
+    }
+    if (q.page < 1) {
+      return res.status(400).json({ error: "'page' must be >= 1" });
+    }
+    if (q.maxcount < 1 || q.maxcount > 100) {
+      return res.status(400).json({ error: "'maxcount' must be in 1-100" });
+    }
+    let photos;
+    let skip = (q.page - 1) * q.maxcount;
+    if (q.ownerid) {      
+      photos = await Photo.find({ owner: new ObjectId(q.ownerid) }).skip(skip).limit(q.maxcount).exec();
+    } else {
+      photos = await Photo.find({}).skip(skip).limit(q.maxcount).exec();
+    }
+    res.json({q, photos});
+  } catch (err) {
+    return next(err);
+  }
+});
+
 // error handler
 app.use((err, req, res, next) => {
   if (err instanceof mongoose.Error.ValidationError) {
     res.status(400).json({ error: err });
   }
-  console.error('Unhandled ERROR!', JSON.stringify(err, null, 2 ));
+  console.error('Unhandled ERROR!', err);
   res.status(500).json({error: 'server error'});
 });
 

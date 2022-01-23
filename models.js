@@ -15,7 +15,11 @@ const UserSchema = new Schema({
     type: String,
     required: true,
     unique: true,
-    validate: [validator.isEmail, 'invalid email'],
+    validate: {
+      validator: validator.isEmail, 
+      message: props => `${props.value} is not valid email`
+    },
+    lowercase: true
   },
   password: {
     type: String,
@@ -31,7 +35,7 @@ const User = mongoose.model('User', UserSchema);
 
 
 const PhotoSchema = new Schema({
-  albumId: { type: ObjectId, required: true },
+  albumId: { type: ObjectId, ref: 'Album', required: true },
   title: {
     type: String,
     required: true,
@@ -46,17 +50,10 @@ const PhotoSchema = new Schema({
     required: true,
     validate: [validator.isURL, 'invalid url'],
   },
-  owner: { type: ObjectId, required: true },
+  owner: { type: ObjectId, ref: 'User', required: true, index: true},
 });
 PhotoSchema.index({albumId: 1, title: 1}, {unique: true});
 const Photo = mongoose.model('Photo', PhotoSchema);
-Photo.on('index', function (err) {
-  if (err) {
-    console.error('Photo indexing error: %s', err);
-  } else {
-    console.info('Photo indexing complete');
-  }
-});
 
 
 const AlbumSchema = new Schema({
@@ -66,6 +63,7 @@ const AlbumSchema = new Schema({
   },
   owner: { 
     type: ObjectId,
+    ref: 'User',
     required: true
   },
 });
