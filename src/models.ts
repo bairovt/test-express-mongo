@@ -1,8 +1,8 @@
-const mongoose = require('mongoose');
-const validator = require('validator');
+import mongoose from 'mongoose'
+import validator from 'validator'
 
 const Schema = mongoose.Schema;
-const ObjectId = Schema.ObjectId;
+const ObjectId = Schema.Types.ObjectId;
 
 
 const UserSchema = new Schema({
@@ -17,7 +17,7 @@ const UserSchema = new Schema({
     unique: true,
     validate: {
       validator: validator.isEmail, 
-      message: props => `${props.value} is not valid email`
+      message: (props: any) => `${props.value} is not valid email`
     },
     lowercase: true
   },
@@ -70,4 +70,4 @@ const AlbumSchema = new Schema({
 const Album = mongoose.model('Album', AlbumSchema);
 
 
-module.exports = {User, Photo, Album}
+export {User, Photo, Album}
