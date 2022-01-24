@@ -1,6 +1,8 @@
 import express from 'express';
 import crypto from 'crypto';
-import { User, Photo, Album } from 'models';
+import UserModel from 'models/user';
+import PhotoModel from 'models/photo';
+import AlbumModel from 'models/album';
 import validator from 'validator';
 import jwt from 'jsonwebtoken';
 import config from 'config';
@@ -17,13 +19,13 @@ app.use(express.json());
 
 app.post('/register', async (req: any, res: any, next: any) => {
   try {
-    let user = new User({
+    let user = new UserModel({
       login: req.body.login,
       email: req.body.email,
       password: crypto.createHash('md5').update(req.body.password).digest('hex'),
     });
-    await User.validate(user);
-    const existing = await User.findOne({
+    await UserModel.validate(user);
+    const existing = await UserModel.findOne({
       $or: [{ login: user.login }, { email: user.email }],
     });
     if (existing) {
@@ -45,16 +47,16 @@ app.post('/login', async (req: any, res: any, next: any) => {
     let user; // todo addtype
     const md5pass = crypto.createHash('md5').update(password).digest('hex');
     if (validator.isEmail(login)) {
-      user = await User.findOne({ email: login.toLowerCase(), password: md5pass });
+      user = await UserModel.findOne({ email: login.toLowerCase(), password: md5pass });
     } else {
-      user = await User.findOne({ login: login, password: md5pass });
+      user = await UserModel.findOne({ login: login, password: md5pass });
     }
     if (!user) {
-      res.status(401).end('User unauthorized');
+      return res.status(401).end('User unauthorized');
     }
     const jwtPayload: JwtPayload = {
       user_id: user._id,
-      login: user.lonig,
+      login: user.login,
       email: user.email,
     };
     const authToken = jwt.sign(jwtPayload, config.SECRET_KEY);
@@ -74,12 +76,12 @@ app.post('/load-photos', authenticate, async (req: any, res: any, next: any) => 
       inserted: 0,
     };
     for (let item of resp.data) {
-      album = await Album.findOne({ title: item.albumId, owner: user._id });
+      album = await AlbumModel.findOne({ title: item.albumId, owner: user._id });
       if (!album) {
-        album = new Album({ title: item.albumId, owner: user._id });
+        album = new AlbumModel({ title: item.albumId, owner: user._id });
         await album.save();
       }
-      const photo = new Photo({
+      const photo = new PhotoModel({
         albumId: album._id,
         title: item.title,
         url: item.url,
@@ -129,11 +131,11 @@ app.get('/get-photos', async (req: any, res: any, next: any) => {
     let photos;
     let skip = (q.page - 1) * q.maxcount;
     if (q.ownerid) {
-      photos = await Photo.find({ owner: new ObjectId(q.ownerid) })
+      photos = await PhotoModel.find({ owner: new ObjectId(q.ownerid) })
         .skip(skip)
         .limit(q.maxcount);
     } else {
-      photos = await Photo.find({}).skip(skip).limit(q.maxcount);
+      photos = await PhotoModel.find({}).skip(skip).limit(q.maxcount);
     }
     res.json({ q, photos });
   } catch (err) {
@@ -160,14 +162,14 @@ app.delete('/delete-photo', authenticate, async (req: any, res: any, next: any) 
       }
     }
     // check if id list contains photos owned by another user
-    const forbiddenPhoto = await Photo.findOne({
+    const forbiddenPhoto = await PhotoModel.findOne({
       _id: { $in: photoObjectIds },
       owner: { $ne: user._id },
     });
     if (forbiddenPhoto) {
       return res.status(403).json({ error: 'id list contains a non-user photo' });
     }
-    const result = await Photo.deleteMany({ _id: { $in: photoObjectIds } });
+    const result = await PhotoModel.deleteMany({ _id: { $in: photoObjectIds } });
     res.json(result);
   } catch (err) {
     next(err);
@@ -193,15 +195,15 @@ app.delete('/delete-album', authenticate, async (req: any, res: any, next: any) 
       }
     }
     // check if id list contains albums owned by another user
-    const forbiddenAlbum = await Album.findOne({
+    const forbiddenAlbum = await AlbumModel.findOne({
       _id: { $in: albumObjectIds },
       owner: { $ne: user._id },
     });
     if (forbiddenAlbum) {
       return res.status(403).json({ error: 'id list contains a non-user album' });
     }
-    const deletePhoto = await Photo.deleteMany({ albumId: { $in: albumObjectIds } });
-    const deleteAlbum = await Album.deleteMany({ _id: { $in: albumObjectIds } });
+    const deletePhoto = await PhotoModel.deleteMany({ albumId: { $in: albumObjectIds } });
+    const deleteAlbum = await AlbumModel.deleteMany({ _id: { $in: albumObjectIds } });
     res.json({ result: { deletePhoto, deleteAlbum } });
   } catch (err) {
     next(err);
@@ -220,7 +222,7 @@ app.post('/change-album-title', authenticate, async (req: any, res: any, next: a
     let new_album_name = req.body.new_album_name;
 
     // check if album is owned by another user
-    const forbiddenAlbum = await Album.findOne({
+    const forbiddenAlbum = await AlbumModel.findOne({
       _id: new ObjectId(albumid),
       owner: { $ne: user._id },
     });
@@ -228,7 +230,10 @@ app.post('/change-album-title', authenticate, async (req: any, res: any, next: a
       return res.status(403).json({ error: 'non-user album' });
     }
 
-    const result = await Album.updateOne({ _id: new ObjectId(albumid) }, { title: new_album_name });
+    const result = await AlbumModel.updateOne(
+      { _id: new ObjectId(albumid) },
+      { title: new_album_name }
+    );
     res.json({ result });
   } catch (err) {
     next(err);

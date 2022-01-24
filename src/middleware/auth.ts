@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import config from 'config';
-import {User} from 'models';
+import UserModel from 'models/user';
 import {JwtPayload} from 'interfaces'
 
 
@@ -13,7 +13,7 @@ export default async function (req: any, res: any, next: any) {
     
     const payload = jwt.verify(authToken, config.SECRET_KEY) as JwtPayload;
 
-    const user = await User.findById(payload.user_id);
+    const user = await UserModel.findById(payload.user_id);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
