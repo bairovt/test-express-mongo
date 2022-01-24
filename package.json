@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "export NODE_ENV=development NODE_PATH=./ PORT=3000 && nodemon ./bin/www",
-    "start": "export NODE_ENV=production NODE_PATH=./ PORT=3111 && node ./bin/www"
+    "dev": "export NODE_ENV=development NODE_PATH=./src PORT=3000 && nodemon ./src/bin/www",
+    "start": "export NODE_ENV=production NODE_PATH=./src PORT=3111 && node ./src/bin/www"
   },
   "author": "",
   "license": "ISC",
