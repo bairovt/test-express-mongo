@@ -148,7 +148,9 @@ app.delete('/delete-photo', authenticate, async (req, res, next) => {
       photoObjectIds = photoIds.map(id => new ObjectId(id));
     } catch (err) {
       if (err.name === 'BSONTypeError') {
-        return res.status(400).json({error: "invalid photoid"})
+        return res
+          .status(400)
+          .json({ error: 'photoid must be ObjectId or list of ObjectId' });
       } else {
         throw err
       };
@@ -178,7 +180,7 @@ app.delete('/delete-album', authenticate, async (req, res, next)   => {
       albumObjectIds = albumIds.map((id) => new ObjectId(id));
     } catch (err) {
       if (err.name === 'BSONTypeError') {
-        return res.status(400).json({ error: 'invalid albumid' });
+        return res.status(400).json({ error: 'albumid must be ObjectId or list of ObjectId' });
       } else {
         throw err;
       }
@@ -194,6 +196,34 @@ app.delete('/delete-album', authenticate, async (req, res, next)   => {
     const deletePhoto = await Photo.deleteMany({ albumId: { $in: albumObjectIds } });
     const deleteAlbum = await Album.deleteMany({ _id: { $in: albumObjectIds } });
     res.json({result: { deletePhoto, deleteAlbum } });
+  } catch (err) {
+    next(err)
+  }
+});
+
+app.post('/change-album-title', authenticate, async (req, res, next) => {
+  try {
+    const user = res.locals.user;
+
+    let albumid = req.query.albumid;
+    console.log(albumid);
+    if (typeof albumid !== 'string' || !validator.isMongoId(albumid)) {
+      res.status(400).json({ error: 'albumid must be ObjectId' });
+    }
+
+    let new_album_name = req.body.new_album_name;
+
+    // check if album is owned by another user
+    const forbiddenAlbum = await Album.findOne({
+      _id: new ObjectId(albumid),
+      owner: { $ne: user._id },
+    });
+    if (forbiddenAlbum) {
+      return res.status(403).json({ error: 'non-user album' });
+    }
+    
+    const result = await Album.updateOne({ _id: new ObjectId(albumid) }, {title: new_album_name} );
+    res.json({ result });
   } catch (err) {
     next(err)
   }
