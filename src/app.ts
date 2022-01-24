@@ -7,6 +7,7 @@ import config from 'config';
 import authenticate from './middleware/auth';
 import axios from 'axios';
 import mongoose from 'mongoose';
+import { JwtPayload } from 'interfaces';
 
 const ObjectId = mongoose.Types.ObjectId;
 
@@ -24,7 +25,7 @@ app.post('/register', async (req: any, res: any, next: any) => {
     await User.validate(user);
     const existing = await User.findOne({
       $or: [{ login: user.login }, { email: user.email }],
-    }).exec();
+    });
     if (existing) {
       res.status(409).json({ error: { message: 'The same login or email already registered' } });
       return next();
@@ -44,14 +45,14 @@ app.post('/login', async (req: any, res: any, next: any) => {
     let user; // todo addtype
     const md5pass = crypto.createHash('md5').update(password).digest('hex');
     if (validator.isEmail(login)) {
-      user = await User.findOne({ email: login.toLowerCase(), password: md5pass }).exec();
+      user = await User.findOne({ email: login.toLowerCase(), password: md5pass });
     } else {
-      user = await User.findOne({ login: login, password: md5pass }).exec();
+      user = await User.findOne({ login: login, password: md5pass });
     }
     if (!user) {
       res.status(401).end('User unauthorized');
     }
-    const jwtPayload = {
+    const jwtPayload: JwtPayload = {
       user_id: user._id,
       login: user.lonig,
       email: user.email,
@@ -73,7 +74,7 @@ app.post('/load-photos', authenticate, async (req: any, res: any, next: any) => 
       inserted: 0,
     };
     for (let item of resp.data) {
-      album = await Album.findOne({ title: item.albumId, owner: user._id }).exec();
+      album = await Album.findOne({ title: item.albumId, owner: user._id });
       if (!album) {
         album = new Album({ title: item.albumId, owner: user._id });
         await album.save();
@@ -130,10 +131,9 @@ app.get('/get-photos', async (req: any, res: any, next: any) => {
     if (q.ownerid) {
       photos = await Photo.find({ owner: new ObjectId(q.ownerid) })
         .skip(skip)
-        .limit(q.maxcount)
-        .exec();
+        .limit(q.maxcount);
     } else {
-      photos = await Photo.find({}).skip(skip).limit(q.maxcount).exec();
+      photos = await Photo.find({}).skip(skip).limit(q.maxcount);
     }
     res.json({ q, photos });
   } catch (err) {

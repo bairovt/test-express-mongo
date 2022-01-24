@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import config from 'config';
 import {User} from 'models';
+import {JwtPayload} from 'interfaces'
 
 
 export default async function (req: any, res: any, next: any) {
@@ -9,14 +10,10 @@ export default async function (req: any, res: any, next: any) {
     if (!authHeader) return res.status(401).json({ error: 'Empty auth header' });
 
     const authToken = authHeader.split(' ').pop();
-    interface JwtPayload {
-      user_id: String;
-      login: String;
-      email: String;
-    }
+    
     const payload = jwt.verify(authToken, config.SECRET_KEY) as JwtPayload;
 
-    const user = await User.findById(payload.user_id).exec();
+    const user = await User.findById(payload.user_id);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
