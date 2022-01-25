@@ -1,7 +1,7 @@
-import { Schema, model} from 'mongoose';
+import { Schema, model, Document} from 'mongoose';
 import validator from 'validator';
 
-export interface User {
+export interface User extends Document {
   login: string;
   email: string;
   password: string;
@@ -35,6 +35,4 @@ const UserSchema = new Schema<User>({
   },
 });
 
-const UserModel = model<User>('User', UserSchema);
-
-export default UserModel;
+export const UserModel = model<User>('User', UserSchema);

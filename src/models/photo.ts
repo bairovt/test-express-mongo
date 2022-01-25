@@ -1,7 +1,7 @@
-import { Schema, model, Types} from 'mongoose';
+import { Schema, model, Types, Document } from 'mongoose';
 import validator from 'validator';
 
-export interface Photo {
+export interface Photo extends Document {
   albumId: Types.ObjectId;
   title: string;
   url: string;
@@ -30,6 +30,5 @@ const PhotoSchema = new Schema<Photo>({
 
 PhotoSchema.index({ albumId: 1, title: 1 }, { unique: true });
 
-const PhotoModel = model<Photo>('Photo', PhotoSchema);
+export const PhotoModel = model<Photo>('Photo', PhotoSchema);
 
-export default PhotoModel;

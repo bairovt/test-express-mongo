@@ -1,19 +1,20 @@
 import jwt from 'jsonwebtoken';
 import config from 'config';
-import UserModel from 'models/user';
+import {User, UserModel} from 'models/user';
 import {JwtPayload} from 'interfaces'
+import { Request, Response, NextFunction } from 'express';
 
 
-export default async function (req: any, res: any, next: any) {
+export default async function (req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ error: 'Empty auth header' });
 
-    const authToken = authHeader.split(' ').pop();
+    const authToken: string = authHeader.split(' ').pop() || '';
     
     const payload = jwt.verify(authToken, config.SECRET_KEY) as JwtPayload;
 
-    const user = await UserModel.findById(payload.user_id);
+    const user: User | null = await UserModel.findById(payload.user_id);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });

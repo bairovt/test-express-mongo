@@ -10,8 +10,7 @@ server.on('error', (error: Error) => {
   throw error;
 });
 server.on('listening', () => {
-  const addr = server.address();
-  // console.info(`Listening on http://localhost:${addr.port}`);
+  const addr = server.address();  
   console.info(`Listening on http://localhost:${config.PORT}`);
 });
 

@@ -1,6 +1,5 @@
-import {Schema, model, Types} from 'mongoose';
-
-export interface Album {
+import {Schema, model, Types, Document} from 'mongoose';
+export interface Album extends Document{
   title: string;
   owner: Types.ObjectId;
 }
@@ -17,6 +16,4 @@ const AlbumSchema = new Schema<Album>({
   },
 });
 
-const AlbumModel = model<Album>('Album', AlbumSchema);
-
-export default AlbumModel;
+export const AlbumModel = model<Album>('Album', AlbumSchema);

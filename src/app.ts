@@ -1,8 +1,8 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import UserModel from 'models/user';
-import PhotoModel from 'models/photo';
-import AlbumModel from 'models/album';
+import { User, UserModel } from 'models/user';
+import { Photo, PhotoModel } from 'models/photo';
+import { Album, AlbumModel } from 'models/album';
 import validator from 'validator';
 import jwt from 'jsonwebtoken';
 import config from 'config';
@@ -17,34 +17,32 @@ const app = express();
 
 app.use(express.json());
 
-app.post('/register', async (req: any, res: any, next: any) => {
+app.post('/register', async (req, res, next) => {
   try {
-    let user = new UserModel({
+    let user: User = new UserModel({
       login: req.body.login,
       email: req.body.email,
       password: crypto.createHash('md5').update(req.body.password).digest('hex'),
     });
     await UserModel.validate(user);
-    const existing = await UserModel.findOne({
+    const existing: User | null = await UserModel.findOne({
       $or: [{ login: user.login }, { email: user.email }],
     });
     if (existing) {
-      res.status(409).json({ error: { message: 'The same login or email already registered' } });
-      return next();
+      return res.status(409).json({ error: { message: 'The same login or email already registered' } });      
     }
-    user = await user.save();
+    await user.save();
     res.json({ _id: user._id });
   } catch (err) {
     next(err);
   }
 });
 
-app.post('/login', async (req: any, res: any, next: any) => {
+app.post('/login', async (req, res, next) => {
   try {
-    // todo validate dto
-    const login = req.body.login;
-    const password = req.body.password;
-    let user; // todo addtype
+    const login: string = req.body.login;
+    const password: string = req.body.password;
+    let user: User | null;
     const md5pass = crypto.createHash('md5').update(password).digest('hex');
     if (validator.isEmail(login)) {
       user = await UserModel.findOne({ email: login.toLowerCase(), password: md5pass });
@@ -66,11 +64,11 @@ app.post('/login', async (req: any, res: any, next: any) => {
   }
 });
 
-app.post('/load-photos', authenticate, async (req: any, res: any, next: any) => {
+app.post('/load-photos', authenticate, async (req, res, next) => {
   try {
     const user = res.locals.user;
     const resp = await axios.get('http://jsonplaceholder.typicode.com/photos');
-    let album;
+    let album: Album | null;
     let result = {
       duplicated: 0,
       inserted: 0,
@@ -81,7 +79,7 @@ app.post('/load-photos', authenticate, async (req: any, res: any, next: any) => 
         album = new AlbumModel({ title: item.albumId, owner: user._id });
         await album.save();
       }
-      const photo = new PhotoModel({
+      const photo: Photo = new PhotoModel({
         albumId: album._id,
         title: item.title,
         url: item.url,
@@ -105,50 +103,51 @@ app.post('/load-photos', authenticate, async (req: any, res: any, next: any) => 
   }
 });
 
-app.get('/get-photos', async (req: any, res: any, next: any) => {
-  try {
-    // todo types
-    const q = {
-      ownerid: req.query.ownerid,
-      page: parseInt(req.query.page),
-      maxcount: parseInt(req.query.maxcount),
+app.get('/get-photos', async (req, res, next) => {
+  try {   
+    let ownerid = req.query.ownerid;
+    if (typeof ownerid !== 'string' || !validator.isMongoId(ownerid)) {
+      ownerid = undefined;
+    }
+    const query: {
+      ownerid: string | undefined;
+      page: number;
+      maxcount: number;
+    } = {
+      ownerid,
+      page: typeof req.query.page === 'string' ? parseInt(req.query.page) : NaN,
+      maxcount: typeof req.query.maxcount === 'string' ? parseInt(req.query.maxcount) : NaN,
     };
-    if (typeof q.ownerid !== 'string' || !validator.isMongoId(q.ownerid)) {
-      q.ownerid = null;
-    }
-    if (!q.page || !q.maxcount) {
-      return res.status(400).json({ error: "'page' and 'maxcount' must be present" });
-    }
-    if (typeof q.page !== 'number' || typeof q.maxcount !== 'number') {
-      return res.status(400).json({ error: "'page' and 'maxcount' should be a number" });
-    }
-    if (q.page < 1) {
+    if (!query.page || !query.maxcount) {
+      return res.status(400).json({ error: "'page' and 'maxcount' must be set as a number > 0" });
+    }    
+    if (query.page < 1) {
       return res.status(400).json({ error: "'page' must be >= 1" });
     }
-    if (q.maxcount < 1 || q.maxcount > 100) {
+    if (query.maxcount < 1 || query.maxcount > 100) {
       return res.status(400).json({ error: "'maxcount' must be in 1-100" });
     }
     let photos;
-    let skip = (q.page - 1) * q.maxcount;
-    if (q.ownerid) {
-      photos = await PhotoModel.find({ owner: new ObjectId(q.ownerid) })
+    let skip: number = (query.page - 1) * query.maxcount;
+    if (query.ownerid) {
+      photos = await PhotoModel.find({ owner: new ObjectId(query.ownerid) })
         .skip(skip)
-        .limit(q.maxcount);
+        .limit(query.maxcount);
     } else {
-      photos = await PhotoModel.find({}).skip(skip).limit(q.maxcount);
+      photos = await PhotoModel.find({}).skip(skip).limit(query.maxcount);
     }
-    res.json({ q, photos });
+    res.json({ query, photos });
   } catch (err) {
     return next(err);
   }
 });
 
-app.delete('/delete-photo', authenticate, async (req: any, res: any, next: any) => {
+app.delete('/delete-photo', authenticate, async (req, res, next) => {
   try {
     const user = res.locals.user;
     let photoid = req.query.photoid;
     if (typeof photoid !== 'string') {
-      res.status(400).json({ error: 'photoid must be a string' });
+      return res.status(400).json({ error: 'photoid must be a string' });
     }
     let photoIds = photoid.split(',');
     let photoObjectIds;
@@ -176,12 +175,12 @@ app.delete('/delete-photo', authenticate, async (req: any, res: any, next: any) 
   }
 });
 
-app.delete('/delete-album', authenticate, async (req: any, res: any, next: any) => {
+app.delete('/delete-album', authenticate, async (req, res, next) => {
   try {
     const user = res.locals.user;
     let albumid = req.query.albumid;
     if (typeof albumid !== 'string') {
-      res.status(400).json({ error: 'albumid must be a string' });
+      return res.status(400).json({ error: 'albumid must be a string' });
     }
     let albumIds = albumid.split(',');
     let albumObjectIds;
@@ -202,21 +201,21 @@ app.delete('/delete-album', authenticate, async (req: any, res: any, next: any) 
     if (forbiddenAlbum) {
       return res.status(403).json({ error: 'id list contains a non-user album' });
     }
-    const deletePhoto = await PhotoModel.deleteMany({ albumId: { $in: albumObjectIds } });
-    const deleteAlbum = await AlbumModel.deleteMany({ _id: { $in: albumObjectIds } });
-    res.json({ result: { deletePhoto, deleteAlbum } });
+    const deletePhotoResult = await PhotoModel.deleteMany({ albumId: { $in: albumObjectIds } });
+    const deleteAlbumResult = await AlbumModel.deleteMany({ _id: { $in: albumObjectIds } });
+    res.json({ result: { deletePhotoResult, deleteAlbumResult } });
   } catch (err) {
     next(err);
   }
 });
 
-app.post('/change-album-title', authenticate, async (req: any, res: any, next: any) => {
+app.post('/change-album-title', authenticate, async (req, res, next) => {
   try {
     const user = res.locals.user;
 
     let albumid = req.query.albumid;    
     if (typeof albumid !== 'string' || !validator.isMongoId(albumid)) {
-      res.status(400).json({ error: 'albumid must be ObjectId' });
+      return res.status(400).json({ error: 'albumid must be ObjectId' });
     }
 
     let new_album_name = req.body.new_album_name;
@@ -240,8 +239,20 @@ app.post('/change-album-title', authenticate, async (req: any, res: any, next: a
   }
 });
 
+// for test
+app.delete('/delete-user', async (req, res, next) => {
+  let userid = req.query.userid;
+  if (typeof userid !== 'string' || !validator.isMongoId(userid)) {
+    return res.status(400).json({ error: 'wrong userid' });
+  }
+  const deletePhotoResult = await PhotoModel.deleteMany({ owner: new ObjectId(userid) });
+  const deleteAlbumResult = await AlbumModel.deleteMany({ owner: new ObjectId(userid) });
+  const deleteUserResult = await UserModel.findByIdAndDelete(new ObjectId(userid));
+  res.json({ result: { deletePhotoResult, deleteAlbumResult, deleteUserResult } });
+})
+
 // error handler
-app.use((err: Error, req: any, res: any, next: any) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof mongoose.Error.ValidationError) {
     res.status(400).json({ error: err });
   }
