@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "export NODE_ENV=development NODE_PATH=./src PORT=3000 && nodemon ./src/bin/www.ts",
-    "start": "export NODE_ENV=production NODE_PATH=./src PORT=3111 && node ./dist/bin/www.js",
-    "build": "tsc -p ."
+    "build": "tsc -p .",
+    "prestart": "npm run build",
+    "start": "export NODE_ENV=production NODE_PATH=./dist PORT=3111 && node ./dist/bin/www.js"
   },
   "author": "",
   "license": "ISC",
@@ -20,7 +21,7 @@
   "devDependencies": {
     "@types/express": "^4.17.13",
     "@types/jsonwebtoken": "^8.5.8",
-    "@types/node": "^17.0.10",
+    "@types/node": "^16.11.7",
     "@types/validator": "^13.7.1",
     "nodemon": "^2.0.15",
     "ts-node": "^10.4.0",
