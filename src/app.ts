@@ -22,7 +22,7 @@ app.post('/register', async (req, res, next) => {
     let user: User = new UserModel({
       login: req.body.login,
       email: req.body.email,
-      password: crypto.createHash('md5').update(req.body.password).digest('hex'),
+      password: req.body.password,
     });
     await UserModel.validate(user);
     const existing: User | null = await UserModel.findOne({
@@ -43,11 +43,11 @@ app.post('/login', async (req, res, next) => {
     const login: string = req.body.login;
     const password: string = req.body.password;
     let user: User | null;
-    const md5pass = crypto.createHash('md5').update(password).digest('hex');
+    const md5password: string = crypto.createHash('md5').update(password).digest('hex');
     if (validator.isEmail(login)) {
-      user = await UserModel.findOne({ email: login.toLowerCase(), password: md5pass });
+      user = await UserModel.findOne({ email: login.toLowerCase(), password: md5password });
     } else {
-      user = await UserModel.findOne({ login: login, password: md5pass });
+      user = await UserModel.findOne({ login: login, password: md5password });
     }
     if (!user) {
       return res.status(401).end('User unauthorized');

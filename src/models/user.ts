@@ -1,5 +1,6 @@
 import { Schema, model, Document} from 'mongoose';
 import validator from 'validator';
+import crypto from 'crypto';
 
 export interface User extends Document {
   login: string;
@@ -34,5 +35,9 @@ const UserSchema = new Schema<User>({
     default: Date.now,
   },
 });
+UserSchema.pre('save', function(next) {
+  this.password = crypto.createHash('md5').update(this.password).digest('hex');
+  next();
+})
 
 export const UserModel = model<User>('User', UserSchema);
