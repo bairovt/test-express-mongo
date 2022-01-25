@@ -25,10 +25,10 @@ app.post('/register', async (req, res, next) => {
       password: req.body.password,
     });
     await UserModel.validate(user);
-    const existing: User | null = await UserModel.findOne({
+    const existingUser: User | null = await UserModel.findOne({
       $or: [{ login: user.login }, { email: user.email }],
     });
-    if (existing) {
+    if (existingUser) {
       return res.status(409).json({ error: { message: 'The same login or email already registered' } });      
     }
     await user.save();
@@ -40,6 +40,9 @@ app.post('/register', async (req, res, next) => {
 
 app.post('/login', async (req, res, next) => {
   try {
+    if (typeof req.body.login !== 'string' || typeof req.body.password !== 'string') {
+      return res.status(400).json({ error: 'login and password must be strings' });
+    }
     const login: string = req.body.login;
     const password: string = req.body.password;
     let user: User | null;
@@ -127,7 +130,7 @@ app.get('/get-photos', async (req, res, next) => {
     if (query.maxcount < 1 || query.maxcount > 100) {
       return res.status(400).json({ error: "'maxcount' must be in 1-100" });
     }
-    let photos;
+    let photos: Photo[];
     let skip: number = (query.page - 1) * query.maxcount;
     if (query.ownerid) {
       photos = await PhotoModel.find({ owner: new ObjectId(query.ownerid) })
@@ -149,7 +152,7 @@ app.delete('/delete-photo', authenticate, async (req, res, next) => {
     if (typeof photoid !== 'string') {
       return res.status(400).json({ error: 'photoid must be a string' });
     }
-    let photoIds = photoid.split(',');
+    let photoIds: string[] = photoid.split(',');
     let photoObjectIds;
     try {
       photoObjectIds = photoIds.map((id: any) => new ObjectId(id));
@@ -161,7 +164,7 @@ app.delete('/delete-photo', authenticate, async (req, res, next) => {
       }
     }
     // check if id list contains photos owned by another user
-    const forbiddenPhoto = await PhotoModel.findOne({
+    const forbiddenPhoto: Photo | null = await PhotoModel.findOne({
       _id: { $in: photoObjectIds },
       owner: { $ne: user._id },
     });
@@ -194,7 +197,7 @@ app.delete('/delete-album', authenticate, async (req, res, next) => {
       }
     }
     // check if id list contains albums owned by another user
-    const forbiddenAlbum = await AlbumModel.findOne({
+    const forbiddenAlbum: Album | null = await AlbumModel.findOne({
       _id: { $in: albumObjectIds },
       owner: { $ne: user._id },
     });
@@ -219,6 +222,9 @@ app.post('/change-album-title', authenticate, async (req, res, next) => {
     }
 
     let new_album_name = req.body.new_album_name;
+    if (typeof new_album_name !== 'string') {
+      return res.status(400).json({ error: 'new_album_name must be a string' });
+    }
 
     // check if album is owned by another user
     const forbiddenAlbum = await AlbumModel.findOne({
